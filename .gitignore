@@ -1,0 +1,15 @@
+cache
+*.gz
+reference
+.hydra
+*/__pycache__
+*.safetensors
+wandb
+*.log
+*/outputs
+outputs
+*/mmlu
+*/ceval-exam
+*.txt
+test.py
+old

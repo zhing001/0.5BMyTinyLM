@@ -1,0 +1,181 @@
+run_name: tinylm-0.5b-pretrain
+seed: 42
+
+rank: -1
+local_rank: -1
+pipe_parallel_size: 2
+model_parallel_size: 1
+world_size: 1
+num_workers: 1
+dp_num: 
+pp_num:
+mp_num:
+
+per_gpu_train_batch_size: 8
+per_gpu_eval_batch_size: 1
+learning_rate: 5e-4
+gradient_accumulation_steps: 4
+weight_decay: 0
+max_grad_norm: 1.0
+num_train_epochs: 1
+max_steps: -1
+warmup_proportion: 0
+warmup_steps: 100
+prefetch_factor: 
+
+model_init_path: 
+output_dir: outputs/${run_name}
+resume_from_checkpoint: 
+
+max_train_steps: 100
+eval_steps: -1 #运行时根据eval_total_limit计算
+eval_total_limit: -1
+save_steps: -1 #运行时根据save_total_limit计算
+save_total_limit: 3 
+log_steps: 5
+ds_log_steps: 50
+resume_step: -1
+pretrain_seq_len: 512
+
+gradient_checkpoint_interval: 0
+
+ntk: false
+
+hydra:  
+  output_subdir: null
+  run:  
+    dir: .
+
+
+# for hf trainer
+training_arguments:
+  run_name: ${run_name}
+  local_rank: ${local_rank}
+  seed: ${seed}
+
+  output_dir: ${output_dir}
+  logging_dir: ${output_dir}/logs
+
+  per_device_train_batch_size: ${per_gpu_train_batch_size}
+  per_device_eval_batch_size: ${per_gpu_eval_batch_size}
+
+  gradient_accumulation_steps: ${gradient_accumulation_steps}
+  learning_rate: ${learning_rate}
+  bf16: true
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1e-8
+  max_grad_norm: ${max_grad_norm}
+  num_train_epochs: ${num_train_epochs}
+  lr_scheduler_type: cosine
+  warmup_steps: ${warmup_steps}
+  optim: adamw_torch
+  report_to: tensorboard
+
+  logging_steps: ${log_steps}
+  save_steps: ${save_steps}
+  save_total_limit: ${save_total_limit}
+  save_safetensors: false
+
+  resume_from_checkpoint: ${resume_from_checkpoint}
+  gradient_checkpointing: true 
+  dataloader_prefetch_factor: ${prefetch_factor}
+  dataloader_num_workers: ${num_workers}
+
+
+
+# model arguments is the same as Qwen1.5-0.5b
+model_argumnts:
+  architectures: Qwen2ForCausalLM
+  attention_dropout: 0.0
+  bos_token_id: 151643
+  eos_token_id: 151643
+  hidden_act: silu
+  hidden_size: 1024
+  initializer_range: 0.02
+  intermediate_size: 2816
+  max_position_embeddings: 32768
+  max_window_layers: 21
+  model_type: qwen2
+  num_attention_heads: 16
+  num_hidden_layers: 24
+  num_key_value_heads: 16
+  rms_norm_eps: 1e-06
+  rope_theta: 1000000.0
+  sliding_window: 32768
+  tie_word_embeddings: true
+  torch_dtype: bfloat16
+  transformers_version: 4.37.0
+  use_cache: true
+  use_sliding_window: false
+  vocab_size: 151936
+  attn_implementation: 
+
+tokenizer:
+  tokenizer_path: /workspace/LLM_Weight/Qwen1.5-0.5b
+
+# Deepspeed config
+deepspeed_config:
+  # train_batch_size: ${per_gpu_train_batch_size}
+
+  train_micro_batch_size_per_gpu: ${per_gpu_train_batch_size}
+  gradient_accumulation_steps: ${gradient_accumulation_steps}
+  gradient_clipping: 1.0
+  steps_per_print: ${ds_log_steps}
+
+  optimizer:
+    type: AdamW
+    params:
+      lr: ${learning_rate}
+      betas: [0.9, 0.999]
+      eps: 1e-8
+      weight_decay: ${weight_decay}
+
+  scheduler:
+    type: WarmupCosineLR
+    params: 
+      warmup_num_steps: ${warmup_steps}
+      cos_min_ratio: 0.001
+      warmup_min_ratio: 0.01
+      total_num_steps: # 运行时计算
+
+  # fp16:
+  #   enabled: false
+  #   loss_scale: 0
+  #   loss_scale_window: 1000
+  #   initial_scale_power: 12
+  #   hysteresis: 2
+  #   min_loss_scale: 1
+
+  bf16:
+    enabled: true
+
+  # autotuning:
+  #  enabled: true
+  #  arg_mappings:
+  #    train_micro_batch_size_per_gpu: "per_gpu_train_batch_size"
+  #    gradient_accumulation_steps: "gradient_accumulation_steps"
+  #    zero_optimization: "ds_cfg.zero_optimization"
+
+  wall_clock_breakdown: true
+
+  tensorboard:
+    enabled: true
+    output_path: ${output_dir}/runs
+    job_name: ${run_name}
+
+  wandb:
+    enabled: false 
+
+  # zero_optimization:
+  #   stage: 1
+  #   contiguous_gradients: true
+  #   overlap_comm: true
+  #   reduce_scatter: true
+  #   reduce_bucket_size: 5e8
+  #   allgather_partitions: true
+  #   allgather_bucket_size: 5e8
+    # offload_optimizer:
+    #   enabled: false
+    #   # device: cpu
+    #   # pin_memory: true

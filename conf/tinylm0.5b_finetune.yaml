@@ -1,0 +1,168 @@
+run_name: qwen0.5b-v1-finetune
+seed: 42
+
+rank: -1
+local_rank: -1
+local-rank: -1
+pipe_parallel_size: 1
+model_parallel_size: 1
+world_size: 1
+num_workers: 1
+dp_num: 
+pp_num:
+mp_num:
+
+per_gpu_train_batch_size: 2
+per_gpu_eval_batch_size: 1
+learning_rate: 5e-5
+gradient_accumulation_steps: 32
+weight_decay: 0
+max_grad_norm: 1.0 
+num_train_epochs: 1
+max_steps: -1
+warmup_proportion: 0
+warmup_steps: 1000
+prefetch_factor: 
+
+model_init_path: outputs/qwen0.5b-v1/final
+output_dir: outputs/${run_name}
+resume_from_checkpoint: 
+
+max_train_steps: 100
+eval_steps: 100
+save_steps: 1000
+save_total_limit: 3
+log_steps: 5
+ds_log_steps: 50
+resume_step: -1
+finetune_seq_len: 2048
+
+finetune_data_name:
+
+
+gradient_checkpoint_interval: 0
+
+ntk: false
+longlora_attention: false
+low_rank_training: false
+load_from_cache: true
+train_long_context: false
+
+hydra:  
+  output_subdir: null
+  run:  
+    dir: .
+
+
+# for hf trainer
+training_arguments:
+  run_name: ${run_name}
+  local_rank: ${local_rank}
+  seed: ${seed}
+
+  output_dir: ${output_dir}
+  logging_dir: ${output_dir}/logs
+
+  per_device_train_batch_size: ${per_gpu_train_batch_size}
+  per_device_eval_batch_size: ${per_gpu_eval_batch_size}
+
+  gradient_accumulation_steps: ${gradient_accumulation_steps}
+  learning_rate: ${learning_rate}
+  bf16: true
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1e-8
+  max_grad_norm: ${max_grad_norm}
+  num_train_epochs: ${num_train_epochs}
+  lr_scheduler_type: cosine
+  warmup_steps: ${warmup_steps}
+  optim: adamw_torch
+  report_to: tensorboard
+
+  logging_steps: ${log_steps}
+  save_steps: ${save_steps}
+  save_total_limit: ${save_total_limit}
+  save_safetensors: false
+
+  resume_from_checkpoint: ${resume_from_checkpoint}
+  gradient_checkpointing: true 
+  ddp_find_unused_parameters: False
+
+
+
+# model arguments is the same as Qwen1.5-0.5b
+model_argumnts:
+  architectures: Qwen2ForCausalLM
+  attention_dropout: 0.0
+  bos_token_id: 151643
+  eos_token_id: 151643
+  hidden_act: silu
+  hidden_size: 1024
+  initializer_range: 0.02
+  intermediate_size: 2816
+  max_position_embeddings: 32768
+  max_window_layers: 21
+  model_type: qwen2
+  num_attention_heads: 16
+  num_hidden_layers: 24
+  num_key_value_heads: 16
+  rms_norm_eps: 1e-06
+  rope_theta: 1000000.0
+  sliding_window: 32768
+  tie_word_embeddings: true
+  torch_dtype: bfloat16
+  transformers_version: 4.37.0
+  use_cache: true
+  use_sliding_window: false
+  vocab_size: 151936
+  attn_implementation: 
+
+tokenizer:
+  tokenizer_path: src/Qwen1.5
+# Deepspeed config
+deepspeed_config:
+  # train_batch_size: ${per_gpu_train_batch_size}
+
+  train_micro_batch_size_per_gpu: ${per_gpu_train_batch_size}
+  gradient_accumulation_steps: ${gradient_accumulation_steps}
+  gradient_clipping: 1.0
+  steps_per_print: ${ds_log_steps}
+
+  optimizer:
+    type: AdamW
+    params:
+      lr: ${learning_rate}
+      betas: [0.9, 0.95]
+      eps: 1e-8
+      weight_decay: ${weight_decay}
+
+  scheduler:
+    type: WarmupCosineLR
+    params: 
+      warmup_num_steps: ${warmup_steps}
+  bf16:
+    enabled: true
+
+  # autotuning:
+  #  enabled: true
+  #  arg_mappings:
+  #    train_micro_batch_size_per_gpu: "per_gpu_train_batch_size"
+  #    gradient_accumulation_steps: "gradient_accumulation_steps"
+  #    zero_optimization: "ds_cfg.zero_optimization"
+
+  wall_clock_breakdown: true
+
+  wandb:
+    enabled: false 
+    project: ${run_name}
+
+  zero_optimization:
+    stage: 1
+    contiguous_gradients: true
+    overlap_comm: true
+    reduce_scatter: true
+    reduce_bucket_size: 5e8
+    allgather_partitions: true
+    allgather_bucket_size: 5e8
+    offload_optimizer:
+      enabled: false
